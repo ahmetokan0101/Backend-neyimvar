@@ -6,6 +6,7 @@ import threading
 import os
 
 API_KEY = os.environ.get("API_KEY")
+print("API_KEY loaded:", (API_KEY[:8] + "..." if API_KEY else "NOT FOUND"))
 MODEL = "deepseek/deepseek-chat:free"
 
 def loading_animation():
@@ -220,7 +221,7 @@ def health_chat_assistant():
         if user_input.lower() in ["exit", "çık", "quit"]:
             print("Geçmiş olsun! Sağlıklı günler dilerim! 👋")
             break
-            
+        
         if not user_input.strip():
             print("\n⚠️ Lütfen şikayetinizi yazın.")
             continue
