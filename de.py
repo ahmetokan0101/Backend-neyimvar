@@ -3,8 +3,9 @@ import re
 import time
 import sys
 import threading
+import os
 
-API_KEY = "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"
+API_KEY = os.environ.get("API_KEY")
 MODEL = "deepseek/deepseek-chat:free"
 
 def loading_animation():
