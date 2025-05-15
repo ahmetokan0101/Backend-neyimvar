@@ -58,49 +58,74 @@ def analyze_health_query(query, should_correct=True):
         print(f"OpenRouter API response status: {response.status_code}")
         
         if response.status_code == 200:
-            ai_response = response.json()["choices"][0]["message"]["content"]
-            
-            # Yıldız (*) işaretlerini temizle
-            ai_response = re.sub(r'\*+', '', ai_response)
-            
-            # Parse the AI response to extract structured information
-            causes = ""
-            recommendations = ""
-            when_to_see_doctor = ""
-            which_specialist = ""
-            
-            # Daha güçlü regex pattern'ler ile ayrıştırma yaparak temiz sonuçlar elde et
-            
-            # Olası Nedenler kısmını ayıkla
-            causes_match = re.search(r'(?:1\.[\s]*)?Olası Nedenler:(.+?)(?:(?:2\.[\s]*)?Öneriler:|$)', ai_response, re.DOTALL)
-            
-            # Öneriler kısmını ayıkla
-            recommendations_match = re.search(r'(?:2\.[\s]*)?Öneriler:(.+?)(?:(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:|$)', ai_response, re.DOTALL)
-            
-            # Doktor tavsiyesi kısmını ayıkla
-            doctor_match = re.search(r'(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:(.+?)(?:(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:|$)', ai_response, re.DOTALL)
-            
-            # Branş tavsiyesi kısmını ayıkla
-            specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)$', ai_response, re.DOTALL)
-            
-            if causes_match:
-                causes = causes_match.group(1).strip()
-            if recommendations_match:
-                recommendations = recommendations_match.group(1).strip()
-            if doctor_match:
-                when_to_see_doctor = doctor_match.group(1).strip()
-            if specialist_match:
-                which_specialist = specialist_match.group(1).strip()
-            
-            # Yanıt verisini hazırla
-            return {
-                "causes": causes,
-                "recommendations": recommendations,
-                "when_to_see_doctor": when_to_see_doctor,
-                "which_specialist": which_specialist,
-                "full_response": ai_response,
-                "corrected_query": corrected_query if corrected_query != query else None
-            }
+            try:
+                response_json = response.json()
+                # API yanıtını kontrol et ve hata ayıklama bilgisini yazdır
+                print(f"API response content: {response_json}")
+                
+                # 'choices' anahtarının var olup olmadığını kontrol et
+                if 'choices' not in response_json or not response_json['choices']:
+                    print("Error: 'choices' key not found in API response")
+                    return {"error": "API yanıtı beklenmeyen formatta. Lütfen daha sonra tekrar deneyin."}
+                
+                if len(response_json["choices"]) == 0:
+                    print("Error: 'choices' array is empty")
+                    return {"error": "API yanıtı boş döndü. Lütfen daha sonra tekrar deneyin."}
+                
+                if "message" not in response_json["choices"][0]:
+                    print("Error: 'message' key not found in choices[0]")
+                    return {"error": "API yanıtı geçersiz formatta. Lütfen daha sonra tekrar deneyin."}
+                
+                if "content" not in response_json["choices"][0]["message"]:
+                    print("Error: 'content' key not found in choices[0]['message']")
+                    return {"error": "API yanıtı geçersiz formatta. Lütfen daha sonra tekrar deneyin."}
+                
+                ai_response = response_json["choices"][0]["message"]["content"]
+                
+                # Yıldız (*) işaretlerini temizle
+                ai_response = re.sub(r'\*+', '', ai_response)
+                
+                # Parse the AI response to extract structured information
+                causes = ""
+                recommendations = ""
+                when_to_see_doctor = ""
+                which_specialist = ""
+                
+                # Daha güçlü regex pattern'ler ile ayrıştırma yaparak temiz sonuçlar elde et
+                
+                # Olası Nedenler kısmını ayıkla
+                causes_match = re.search(r'(?:1\.[\s]*)?Olası Nedenler:(.+?)(?:(?:2\.[\s]*)?Öneriler:|$)', ai_response, re.DOTALL)
+                
+                # Öneriler kısmını ayıkla
+                recommendations_match = re.search(r'(?:2\.[\s]*)?Öneriler:(.+?)(?:(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:|$)', ai_response, re.DOTALL)
+                
+                # Doktor tavsiyesi kısmını ayıkla
+                doctor_match = re.search(r'(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:(.+?)(?:(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:|$)', ai_response, re.DOTALL)
+                
+                # Branş tavsiyesi kısmını ayıkla
+                specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)$', ai_response, re.DOTALL)
+                
+                if causes_match:
+                    causes = causes_match.group(1).strip()
+                if recommendations_match:
+                    recommendations = recommendations_match.group(1).strip()
+                if doctor_match:
+                    when_to_see_doctor = doctor_match.group(1).strip()
+                if specialist_match:
+                    which_specialist = specialist_match.group(1).strip()
+                
+                # Yanıt verisini hazırla
+                return {
+                    "causes": causes,
+                    "recommendations": recommendations,
+                    "when_to_see_doctor": when_to_see_doctor,
+                    "which_specialist": which_specialist,
+                    "full_response": ai_response,
+                    "corrected_query": corrected_query if corrected_query != query else None
+                }
+            except Exception as e:
+                print(f"Error parsing API response: {str(e)}")
+                return {"error": "API yanıtının işlenmesi sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin."}
         else:
             print(f"API Error: {response.status_code}")
             print(f"Response content: {response.text}")
@@ -108,6 +133,9 @@ def analyze_health_query(query, should_correct=True):
             
     except Exception as e:
         print(f"Exception occurred: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         return {"error": f"Bağlantı hatası: {str(e)}"}
 
 @app.route('/api/health', methods=['POST'])
