@@ -32,11 +32,18 @@ def analyze_health_query(query, should_correct=True):
     
     messages = [
         {"role": "system", "content": """Sen bir sağlık asistanısın. Kullanıcının sağlık şikayetlerini dinleyip, 
-        olası nedenleri ve önerileri sunacaksın. Her zaman şu formatta yanıt ver:
-        1. Olası Nedenler:
-        2. Öneriler:
-        3. Ne Zaman Doktora Gitmelisiniz:
-        4. Hangi Branşa Gitmelisiniz:"""},
+        olası nedenleri ve önerileri sunacaksın. Aşağıdaki tüm başlıkların her birine mutlaka kapsamlı yanıt ver:
+        
+        1. Olası Nedenler: Belirtilen şikayetlere neden olabilecek sağlık sorunlarını listele.
+        2. Öneriler: Şikayetleri hafifletmek için evde uygulanabilecek yöntemleri açıkla.
+        3. Ne Zaman Doktora Gitmelisiniz: Hangi belirtiler görüldüğünde acilen tıbbi yardım alınması gerektiğini belirt.
+        4. Hangi Branşa Gitmelisiniz: Bu şikayetler için hangi doktor branşına başvurulması gerektiğini söyle.
+        5. Olası Teşhisler: Şikayetlere göre muhtemel tıbbi tanıları listele.
+        6. İlgili Tetkikler: Doğru tanı için gerekebilecek laboratuvar testleri ve görüntüleme yöntemlerini belirt.
+        7. Ortalama İyileşme Süresi: Belirtilen sorunun tedavi edilmezse ve tedavi edilirse beklenen iyileşme sürelerini açıkla.
+        8. Sık Görülen Yan Etkiler: Tedavi sürecinde karşılaşılabilecek yan etki veya komplikasyonları açıkla.
+        
+        Tüm başlıklar için bilgi vermek zorunludur, hiçbir başlığı boş bırakma."""},
         {"role": "user", "content": corrected_query}
     ]
     
@@ -51,7 +58,7 @@ def analyze_health_query(query, should_correct=True):
             json={
                 "model": MODEL,
                 "messages": messages,
-                "temperature": 0.3
+                "temperature": 0.1
             }
         )
         
@@ -68,6 +75,10 @@ def analyze_health_query(query, should_correct=True):
             recommendations = ""
             when_to_see_doctor = ""
             which_specialist = ""
+            possible_diagnoses = ""
+            related_tests = ""
+            recovery_time = ""
+            common_side_effects = ""
             
             # Daha güçlü regex pattern'ler ile ayrıştırma yaparak temiz sonuçlar elde et
             
@@ -81,7 +92,19 @@ def analyze_health_query(query, should_correct=True):
             doctor_match = re.search(r'(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:(.+?)(?:(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:|$)', ai_response, re.DOTALL)
             
             # Branş tavsiyesi kısmını ayıkla
-            specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)$', ai_response, re.DOTALL)
+            specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)(?:(?:5\.[\s]*)?Olası Teşhisler:|$)', ai_response, re.DOTALL)
+            
+            # Olası Teşhisler kısmını ayıkla
+            diagnoses_match = re.search(r'(?:5\.[\s]*)?Olası Teşhisler:(.+?)(?:(?:6\.[\s]*)?İlgili Tetkikler:|$)', ai_response, re.DOTALL)
+            
+            # İlgili Tetkikler kısmını ayıkla
+            tests_match = re.search(r'(?:6\.[\s]*)?İlgili Tetkikler:(.+?)(?:(?:7\.[\s]*)?Ortalama İyileşme Süresi:|$)', ai_response, re.DOTALL)
+            
+            # Ortalama İyileşme Süresi kısmını ayıkla
+            recovery_match = re.search(r'(?:7\.[\s]*)?Ortalama İyileşme Süresi:(.+?)(?:(?:8\.[\s]*)?Sık Görülen Yan Etkiler:|$)', ai_response, re.DOTALL)
+            
+            # Sık Görülen Yan Etkiler kısmını ayıkla
+            side_effects_match = re.search(r'(?:8\.[\s]*)?Sık Görülen Yan Etkiler:(.+?)$', ai_response, re.DOTALL)
             
             if causes_match:
                 causes = causes_match.group(1).strip()
@@ -91,6 +114,14 @@ def analyze_health_query(query, should_correct=True):
                 when_to_see_doctor = doctor_match.group(1).strip()
             if specialist_match:
                 which_specialist = specialist_match.group(1).strip()
+            if diagnoses_match:
+                possible_diagnoses = diagnoses_match.group(1).strip()
+            if tests_match:
+                related_tests = tests_match.group(1).strip()
+            if recovery_match:
+                recovery_time = recovery_match.group(1).strip()
+            if side_effects_match:
+                common_side_effects = side_effects_match.group(1).strip()
             
             # Yanıt verisini hazırla
             return {
@@ -98,6 +129,10 @@ def analyze_health_query(query, should_correct=True):
                 "recommendations": recommendations,
                 "when_to_see_doctor": when_to_see_doctor,
                 "which_specialist": which_specialist,
+                "possible_diagnoses": possible_diagnoses,
+                "related_tests": related_tests,
+                "recovery_time": recovery_time,
+                "common_side_effects": common_side_effects,
                 "full_response": ai_response,
                 "corrected_query": corrected_query if corrected_query != query else None
             }
