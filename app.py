@@ -60,7 +60,8 @@ def analyze_health_query(query, should_correct=True):
                 "model": MODEL,
                 "messages": messages,
                 "temperature": 0.3
-            }
+            },
+            timeout=60  # 60 saniye bekle
         )
         
         print(f"OpenRouter API response status: {response.status_code}")
