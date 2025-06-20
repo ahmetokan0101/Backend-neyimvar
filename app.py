@@ -7,12 +7,12 @@ import requests
 import os
 
 # Import our health assistant logic
-from de import API_KEY, MODEL, is_health_related, correct_turkish_text, get_health_error_message
+from de import API_KEY, MODEL, is_health_related, correct_turkish_text
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-def analyze_health_query(query, lang='tr', should_correct=True):
+def analyze_health_query(query, should_correct=True):
     """Process a health query using the deepseek model"""
     print(f"Received query: {query}")
     
@@ -27,8 +27,8 @@ def analyze_health_query(query, lang='tr', should_correct=True):
         print("Text correction skipped as per user request")
     
     # Check if health related after correction
-    if not is_health_related(corrected_query, lang):
-        return {"error": get_health_error_message(lang)}
+    if not is_health_related(corrected_query):
+        return {"error": "Lütfen sağlığınızla ilgili şikayetlerinizi detaylı ve düzgün kelimelerle belirtiniz. Sistem sadece sağlık şikayetlerini analiz edebilmektedir."}
     
     messages = [
         {"role": "system", "content": """Sen bir sağlık asistanısın. Kullanıcının sağlık şikayetlerini dinleyip, 
@@ -189,14 +189,12 @@ def health_analysis():
             return jsonify({"error": "Semptom bilgisi gerekli"}), 200
         
         symptoms = data['symptoms']
-        should_correct = data.get('should_correct', True)
-        lang = data.get('lang', 'tr')
+        should_correct = data.get('should_correct', True)  # Varsayılan olarak düzeltme yap
         
         print(f"Processing symptoms: {symptoms}")
         print(f"Should correct text: {should_correct}")
-        print(f"Language: {lang}")
         
-        result = analyze_health_query(symptoms, lang, should_correct)
+        result = analyze_health_query(symptoms, should_correct)
         
         # Always return 200 status code, even if there's an error
         return jsonify(result), 200
