@@ -3,8 +3,10 @@ import re
 import time
 import sys
 import threading
+import os
 
-API_KEY = "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"
+API_KEY = os.environ.get("API_KEY")
+print("API_KEY loaded:", (API_KEY[:8] + "..." if API_KEY else "NOT FOUND"))
 MODEL = "deepseek/deepseek-chat:free"
 
 def loading_animation():
@@ -16,53 +18,32 @@ def loading_animation():
         time.sleep(0.1)
         i += 1
 
-def is_health_related(text, lang='tr'):
-    health_keywords = {
-        'tr': [
-            'ağrı', 'sancı', 'hasta', 'hastalık', 'rahatsızlık', 'şikayet', 'semptom',
-            'ateş', 'öksürük', 'baş', 'mide', 'karın', 'göz', 'kulak', 'burun',
-            'boğaz', 'sırt', 'bel', 'bacak', 'kol', 'eklem', 'kas', 'cilt',
-            'uykusuzluk', 'yorgunluk', 'halsizlik', 'bulantı', 'kusma', 'ishal',
-            'kabızlık', 'baş dönmesi', 'titreme', 'terleme', 'nefes', 'kalp',
-            'tansiyon', 'şeker', 'stres', 'alerji', 'astım', 'grip', 'nezle', 'soğuk algınlığı'
-        ],
-        'en': [
-            'pain', 'ache', 'ill', 'disease', 'disorder', 'complaint', 'symptom',
-            'fever', 'cough', 'head', 'stomach', 'abdomen', 'eye', 'ear', 'nose',
-            'throat', 'back', 'waist', 'leg', 'arm', 'joint', 'muscle', 'skin',
-            'insomnia', 'fatigue', 'weakness', 'nausea', 'vomit', 'diarrhea',
-            'constipation', 'dizziness', 'shiver', 'sweat', 'breath', 'heart',
-            'blood pressure', 'sugar', 'stress', 'allergy', 'asthma', 'flu', 'cold'
-        ],
-        'fr': [
-            'douleur', 'mal', 'malade', 'maladie', 'trouble', 'plainte', 'symptôme',
-            'fièvre', 'toux', 'tête', 'estomac', 'abdomen', 'œil', 'oreille', 'nez',
-            'gorge', 'dos', 'taille', 'jambe', 'bras', 'articulation', 'muscle', 'peau',
-            'insomnie', 'fatigue', 'faiblesse', 'nausée', 'vomir', 'diarrhée',
-            'constipation', 'vertige', 'frisson', 'sueur', 'respirer', 'cœur',
-            'pression artérielle', 'sucre', 'stress', 'allergie', 'asthme', 'grippe', 'rhume'
-        ],
-        'ar': [
-            'ألم', 'وجع', 'مريض', 'مرض', 'اضطراب', 'شكوى', 'عرض',
-            'حمى', 'سعال', 'رأس', 'معدة', 'بطن', 'عين', 'أذن', 'أنف',
-            'حلق', 'ظهر', 'خصر', 'ساق', 'ذراع', 'مفصل', 'عضلة', 'جلد',
-            'أرق', 'تعب', 'ضعف', 'غثيان', 'تقيؤ', 'إسهال',
-            'إمساك', 'دوار', 'قشعريرة', 'تعرق', 'تنفس', 'قلب',
-            'ضغط دم', 'سكر', 'توتر', 'حساسية', 'ربو', 'انفلونزا', 'برد'
-        ]
-    }
+def is_health_related(text):
+    # Sağlıkla ilgili anahtar kelimeler
+    health_keywords = [
+        'ağrı', 'sancı', 'hasta', 'hastalık', 'rahatsızlık', 'şikayet', 'semptom',
+        'ateş', 'öksürük', 'baş', 'mide', 'karın', 'göz', 'kulak', 'burun',
+        'boğaz', 'sırt', 'bel', 'bacak', 'kol', 'eklem', 'kas', 'cilt',
+        'uykusuzluk', 'yorgunluk', 'halsizlik', 'bulantı', 'kusma', 'ishal',
+        'kabızlık', 'baş dönmesi', 'titreme', 'terleme', 'nefes', 'kalp',
+        'tansiyon', 'şeker', 'stres', 'alerji', 'astım', 'grip', 'nezle', 'soğuk algınlığı'
+    ]
+    
+    # Sağlık dışı konular
+    non_health_topics = [
+        'xampp', 'program', 'yazılım', 'kod', 'bilgisayar', 'internet', 'web',
+        'site', 'uygulama', 'app', 'software', 'hardware', 'donanım', 'yazılım',
+        'windows', 'linux', 'mac', 'android', 'ios', 'telefon', 'tablet', 'laptop'
+    ]
+    
     text = text.lower()
-    keywords = health_keywords.get(lang, health_keywords['tr'])
-    return any(keyword in text for keyword in keywords)
-
-def get_health_error_message(lang='tr'):
-    messages = {
-        'tr': "Lütfen sağlığınızla ilgili şikayetlerinizi detaylı ve düzgün kelimelerle belirtiniz. Sistem sadece sağlık şikayetlerini analiz edebilmektedir.",
-        'en': "Please describe your health complaints in detail and with proper words. The system can only analyze health-related complaints.",
-        'fr': "Veuillez décrire vos plaintes de santé en détail et avec des mots appropriés. Le système ne peut analyser que les plaintes liées à la santé.",
-        'ar': "يرجى وصف شكواك الصحية بالتفصيل وبكلمات واضحة. النظام يمكنه فقط تحليل الشكاوى الصحية."
-    }
-    return messages.get(lang, messages['tr'])
+    
+    # Önce sağlık dışı konuları kontrol et
+    if any(topic in text for topic in non_health_topics):
+        return False
+        
+    # Sonra sağlık kelimelerini kontrol et
+    return any(keyword in text for keyword in health_keywords)
 
 def correct_turkish_text(text):
     """Türkçe metindeki sağlık şikayetleri için yazım hatalarını kural tabanlı olarak düzeltir."""
@@ -240,7 +221,7 @@ def health_chat_assistant():
         if user_input.lower() in ["exit", "çık", "quit"]:
             print("Geçmiş olsun! Sağlıklı günler dilerim! 👋")
             break
-            
+        
         if not user_input.strip():
             print("\n⚠️ Lütfen şikayetinizi yazın.")
             continue
