@@ -36,7 +36,15 @@ def analyze_health_query(query, lang='tr', should_correct=True):
         1. Olası Nedenler:
         2. Öneriler:
         3. Ne Zaman Doktora Gitmelisiniz:
-        4. Hangi Branşa Gitmelisiniz:"""},
+        4. Hangi Branşa Gitmelisiniz:
+        5. Acil Servise Gitmem Gerekir mi?:
+        6. Evde Nelere Dikkat Etmeliyim?:
+        7. Ne Kadar Sürede Geçmeli?:
+        8. Bu Belirtiler Stres Kaynaklı Olabilir mi?:
+        9. Bu Belirtiler Hangi Hastalıklarla Karıştırılabilir?:
+        10. Bu Belirtiler Ciddi mi?:
+        11. Bu Durumda İlaç Kullanmalı mıyım?:
+        12. Bu Durum Bulaşıcı mı?:"""},
         {"role": "user", "content": corrected_query}
     ]
     
@@ -52,7 +60,8 @@ def analyze_health_query(query, lang='tr', should_correct=True):
                 "model": MODEL,
                 "messages": messages,
                 "temperature": 0.3
-            }
+            },
+            timeout=60  # 60 saniye bekle
         )
         
         print(f"OpenRouter API response status: {response.status_code}")
@@ -68,6 +77,14 @@ def analyze_health_query(query, lang='tr', should_correct=True):
             recommendations = ""
             when_to_see_doctor = ""
             which_specialist = ""
+            emergency_visit = ""
+            home_care = ""
+            duration = ""
+            stress_related = ""
+            similar_conditions = ""
+            severity = ""
+            medication = ""
+            contagious = ""
             
             # Daha güçlü regex pattern'ler ile ayrıştırma yaparak temiz sonuçlar elde et
             
@@ -81,7 +98,31 @@ def analyze_health_query(query, lang='tr', should_correct=True):
             doctor_match = re.search(r'(?:3\.[\s]*)?Ne Zaman Doktora Gitmelisiniz:(.+?)(?:(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:|$)', ai_response, re.DOTALL)
             
             # Branş tavsiyesi kısmını ayıkla
-            specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)$', ai_response, re.DOTALL)
+            specialist_match = re.search(r'(?:4\.[\s]*)?Hangi Branşa Gitmelisiniz:(.+?)(?:(?:5\.[\s]*)?Acil Servise Gitmem Gerekir mi\?:|$)', ai_response, re.DOTALL)
+            
+            # Acil servis kısmını ayıkla
+            emergency_match = re.search(r'(?:5\.[\s]*)?Acil Servise Gitmem Gerekir mi\?:(.+?)(?:(?:6\.[\s]*)?Evde Nelere Dikkat Etmeliyim\?:|$)', ai_response, re.DOTALL)
+            
+            # Evde dikkat edilecekler kısmını ayıkla
+            home_care_match = re.search(r'(?:6\.[\s]*)?Evde Nelere Dikkat Etmeliyim\?:(.+?)(?:(?:7\.[\s]*)?Ne Kadar Sürede Geçmeli\?:|$)', ai_response, re.DOTALL)
+            
+            # Süre kısmını ayıkla
+            duration_match = re.search(r'(?:7\.[\s]*)?Ne Kadar Sürede Geçmeli\?:(.+?)(?:(?:8\.[\s]*)?Bu Belirtiler Stres Kaynaklı Olabilir mi\?:|$)', ai_response, re.DOTALL)
+            
+            # Stres kaynaklı kısmını ayıkla
+            stress_match = re.search(r'(?:8\.[\s]*)?Bu Belirtiler Stres Kaynaklı Olabilir mi\?:(.+?)(?:(?:9\.[\s]*)?Bu Belirtiler Hangi Hastalıklarla Karıştırılabilir\?:|$)', ai_response, re.DOTALL)
+            
+            # Benzer hastalıklar kısmını ayıkla
+            similar_match = re.search(r'(?:9\.[\s]*)?Bu Belirtiler Hangi Hastalıklarla Karıştırılabilir\?:(.+?)(?:(?:10\.[\s]*)?Bu Belirtiler Ciddi mi\?:|$)', ai_response, re.DOTALL)
+            
+            # Ciddiyet kısmını ayıkla
+            severity_match = re.search(r'(?:10\.[\s]*)?Bu Belirtiler Ciddi mi\?:(.+?)(?:(?:11\.[\s]*)?Bu Durumda İlaç Kullanmalı mıyım\?:|$)', ai_response, re.DOTALL)
+            
+            # İlaç kullanımı kısmını ayıkla
+            medication_match = re.search(r'(?:11\.[\s]*)?Bu Durumda İlaç Kullanmalı mıyım\?:(.+?)(?:(?:12\.[\s]*)?Bu Durum Bulaşıcı mı\?:|$)', ai_response, re.DOTALL)
+            
+            # Bulaşıcılık kısmını ayıkla
+            contagious_match = re.search(r'(?:12\.[\s]*)?Bu Durum Bulaşıcı mı\?:(.+?)$', ai_response, re.DOTALL)
             
             if causes_match:
                 causes = causes_match.group(1).strip()
@@ -91,6 +132,22 @@ def analyze_health_query(query, lang='tr', should_correct=True):
                 when_to_see_doctor = doctor_match.group(1).strip()
             if specialist_match:
                 which_specialist = specialist_match.group(1).strip()
+            if emergency_match:
+                emergency_visit = emergency_match.group(1).strip()
+            if home_care_match:
+                home_care = home_care_match.group(1).strip()
+            if duration_match:
+                duration = duration_match.group(1).strip()
+            if stress_match:
+                stress_related = stress_match.group(1).strip()
+            if similar_match:
+                similar_conditions = similar_match.group(1).strip()
+            if severity_match:
+                severity = severity_match.group(1).strip()
+            if medication_match:
+                medication = medication_match.group(1).strip()
+            if contagious_match:
+                contagious = contagious_match.group(1).strip()
             
             # Yanıt verisini hazırla
             return {
@@ -98,6 +155,14 @@ def analyze_health_query(query, lang='tr', should_correct=True):
                 "recommendations": recommendations,
                 "when_to_see_doctor": when_to_see_doctor,
                 "which_specialist": which_specialist,
+                "emergency_visit": emergency_visit,
+                "home_care": home_care,
+                "duration": duration,
+                "stress_related": stress_related,
+                "similar_conditions": similar_conditions,
+                "severity": severity,
+                "medication": medication,
+                "contagious": contagious,
                 "full_response": ai_response,
                 "corrected_query": corrected_query if corrected_query != query else None
             }
